@@ -3,13 +3,13 @@ import type { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types"
 
 // MaverickV2Factory — same address everywhere except zkSync Era
 const DEFAULT_FACTORY = "0x0A7e848Aca42d879EF06507Fca0E7b33A0a63c1e";
-const FACTORY: Record<string, string> = {
-  [CHAIN.ETHEREUM]: DEFAULT_FACTORY,
-  [CHAIN.ARBITRUM]: DEFAULT_FACTORY,
-  [CHAIN.BSC]: DEFAULT_FACTORY,
-  [CHAIN.BASE]: DEFAULT_FACTORY,
-  [CHAIN.SCROLL]: DEFAULT_FACTORY,
-  [CHAIN.ERA]: "0x7A6902af768a06bdfAb4F076552036bf68D1dc56",
+const chainConfig: Record<string, { factory: string; start: string }> = {
+  [CHAIN.ETHEREUM]: { factory: DEFAULT_FACTORY, start: "2024-06-03" },
+  [CHAIN.ARBITRUM]: { factory: DEFAULT_FACTORY, start: "2024-06-03" },
+  [CHAIN.BSC]: { factory: DEFAULT_FACTORY, start: "2024-06-03" },
+  [CHAIN.BASE]: { factory: DEFAULT_FACTORY, start: "2024-06-03" },
+  [CHAIN.SCROLL]: { factory: DEFAULT_FACTORY, start: "2024-07-29" },
+  [CHAIN.ERA]: { factory: "0x7A6902af768a06bdfAb4F076552036bf68D1dc56", start: "2024-06-03" },
 };
 
 const FACTORY_ABI = {
@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { api, getLogs, createBalances, chain } = options;
   const dailyFees = createBalances();
   const dailyVolume = createBalances();
-  const factory = FACTORY[chain];
+  const { factory } = chainConfig[chain];
 
   const poolCount: string = await api.call({ target: factory, abi: FACTORY_ABI.poolCount });
   if (Number(poolCount) === 0) return { dailyVolume, dailyFees };
@@ -81,13 +81,16 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: "2024-06-03" },
-    [CHAIN.ARBITRUM]: { start: "2024-06-03" },
-    [CHAIN.ERA]: { start: "2024-06-03" },
-    [CHAIN.BSC]: { start: "2024-06-03" },
-    [CHAIN.BASE]: { start: "2024-06-03" },
-    [CHAIN.SCROLL]: { start: "2024-07-29" },
+  adapter: Object.fromEntries(
+    Object.entries(chainConfig).map(([chain, { start }]) => [chain, { start }])
+  ),
+  methodology: {
+    Fees: "Swap fees, computed per trade as amountIn times the pool's per-side fee rate, read directly from PoolSwap events.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Swap Fees": "Swap fees paid by traders on Maverick V2 pools, charged on the input token of each trade.",
+    },
   },
 };
 
